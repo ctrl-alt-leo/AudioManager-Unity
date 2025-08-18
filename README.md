@@ -33,7 +33,7 @@ O `AudioMixer` é essencial para controlar os diferentes canais de áudio.
     -   Renomeie o parâmetro exposto para `MasterVolume` na janela do Audio Mixer (canto superior direito).
     -   Repita o processo para os grupos `Music`, `SFX` e `UI`, nomeando os parâmetros como `MusicVolume`, `SFXVolume` e `UIVolume`, respectivamente.
 
-![Expondo Parâmetros do Mixer](httpsa://i.imgur.com/G5gR8fT.png)
+![Expondo Parâmetros do Mixer](https://imgur.com/mw2LyGZ)
 
 ### Passo 2: Adicionar o Script
 
@@ -71,7 +71,7 @@ Sua hierarquia deve ficar assim:
     -   Defina o tamanho da lista (o número de sons que você quer adicionar).
     -   Para cada entrada, defina um **Name** (um nome único que você usará no código, ex: "PlayerJump") e arraste o **AudioClip** correspondente para o campo `Clip`.
 
-![Configuração no Inspector](httpsa://i.imgur.com/8aVw1aE.png)
+![Configuração no Inspector](https://imgur.com/a/v9TYjDw)
 
 Pronto! O `AudioManager` está configurado e pronto para ser usado.
 
