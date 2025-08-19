@@ -35,7 +35,7 @@ O `AudioMixer` é essencial para controlar os diferentes canais de áudio.
     -   Renomeie o parâmetro exposto para `MasterVolume` na janela do Audio Mixer (canto superior direito).
     -   Repita o processo para os grupos `Music`, `SFX` e `UI`, nomeando os parâmetros como `MusicVolume`, `SFXVolume` e `UIVolume`, respectivamente.
 
-![Audio Mixer](https://imgur.com/mw2LyGZ)
+![Audio Mixer](https://i.imgur.com/mw2LyGZ.png)
 
 ### Passo 2: Adicionar o Script
 
