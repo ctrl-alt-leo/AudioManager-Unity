@@ -15,7 +15,8 @@ Um sistema de gerenciamento de áudio robusto, centralizado e de fácil utiliza�
 
 ### Passo 1: Importar o AudioManager
 
-- Faça download do repositório, importe para seu projeto no Unity.
+- Na aba 'Releases' do repositório, faça download do AudioManager.unitypackage.
+- Importe o unitypackage para seu projeto.
 
 ### Passo 2: Adicionar o Prefab na Cena
 
@@ -29,14 +30,20 @@ Um sistema de gerenciamento de áudio robusto, centralizado e de fácil utiliza�
 
 - Basta chamar as funções estáticas do `AudioManager` de qualquer script no seu projeto, ex:
 
+```csharp
 // Tocar música com crossfade de 2 segundos
 AudioManager.PlayMusic(minhaMusica, crossfadeDuration: 2f);
+```
 
+```csharp
 // Tocar efeito sonoro com volume e pitch padrão
 AudioManager.PlaySFX(somExplosao);
+```
 
+```csharp
 // Tocar som de UI
 AudioManager.PlayUI(somCliqueBotao);
+```
 
 ---
 
@@ -45,8 +52,8 @@ AudioManager.PlayUI(somCliqueBotao);
 | Função                         | Descrição                                                                                      |
 |-------------------------------|------------------------------------------------------------------------------------------------|
 | `PlayMusic(AudioClip clip, float volume = 1, float pitch = 1, bool loop = true, float crossfadeDuration = 0)` | Toca música com opção de crossfade suave. Se `crossfadeDuration` for 0, troca imediatamente.  |
-| `PlaySFX(AudioClip clip, float volume = 1, float pitch = 1, bool loop = false)`                   | Toca efeito sonoro na camada SFX usando `PlayOneShot`. Loop não aplicado.                       |
-| `PlayUI(AudioClip clip, float volume = 1, float pitch = 1, bool loop = false)`                    | Toca som de interface na camada UI usando `PlayOneShot`. Loop não aplicado.                     |
+| `PlaySFX(AudioClip clip, float volume = 1, float pitch = 1)`                   | Toca efeito sonoro na camada SFX usando `PlayOneShot`.                       |
+| `PlayUI(AudioClip clip, float volume = 1, float pitch = 1)`                    | Toca som de interface na camada UI usando `PlayOneShot`.                     |
 | `StopMusic()`                                   | Para todas as músicas que estiverem tocando (ambos os sources da música).                      |
 | `StopSFX()`                                     | Para o AudioSource de SFX.                                                                      |
 | `StopUI()`                                      | Para o AudioSource de UI.                                                                       |
