@@ -1,191 +1,232 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Audio;
-using System.Collections.Generic;
-using System;
+// ReSharper disable All
 
-[Serializable]
-public class Sound
-{
-    public string name;
-    public AudioClip clip;
-}
-
+/// <summary>
+/// AudioManager singleton para gerenciar todo áudio do jogo.
+/// Acesso estático: AudioManager.PlayMusic(...), etc.
+/// </summary>
 public class AudioManager : MonoBehaviour
 {
-    // Instância estática para o Singleton
+    [Header("Audio Mixer")]
+    [SerializeField] private AudioMixer audioMixer; // Defina no Inspector com grupos: Master, Music, SFX, UI
+
+    [Header("Audio Sources")]
+    [SerializeField] private AudioSource musicSourceA; // Defina no Inspector
+    [SerializeField] private AudioSource musicSourceB; // Defina no Inspector
+    [SerializeField] private AudioSource sfxSource;    // Defina no Inspector
+    [SerializeField] private AudioSource uiSource;     // Defina no Inspector
+
+    // Controle do crossfade para música
+    private static bool _usingMusicSourceA = true;
+    
+    #region Singleton Pattern
+    // Singleton Instance
     private static AudioManager _instance;
-
-    // Mixer e Audio Sources
-    [SerializeField] private AudioMixer mainMixer;
-    [SerializeField] private AudioSource musicSource;
-    [SerializeField] private AudioSource sfxSource;
-    [SerializeField] private AudioSource uiSource;
-
-    // Listas de sons para fácil acesso no Inspector
-    [SerializeField] private List<Sound> musicTracks;
-    [SerializeField] private List<Sound> sfxClips;
-    [SerializeField] private List<Sound> uiClips;
-
-    // Dicionários para acesso rápido aos clipes pelo nome
-    private Dictionary<string, AudioClip> musicDict;
-    private Dictionary<string, AudioClip> sfxDict;
-    private Dictionary<string, AudioClip> uiDict;
 
     private void Awake()
     {
-        // Implementação do Singleton
+        // Configura Singleton
         if (_instance == null)
         {
             _instance = this;
             DontDestroyOnLoad(gameObject);
+            
+            // Verifica se as referências foram atribuídas no Inspector
+            if (musicSourceA == null || musicSourceB == null || sfxSource == null || uiSource == null)
+            {
+                Debug.LogError("AudioManager: Algum AudioSource não foi atribuído no Inspector!");
+            }
+
+            if (audioMixer == null)
+            {
+                Debug.LogError("AudioManager: AudioMixer não foi atribuído no Inspector!");
+            }
         }
         else
         {
             Destroy(gameObject);
-            return;
+        }
+    }
+    #endregion
+
+    // =========================== PLAY MUSIC ===========================
+
+    /// <summary>
+    /// Toca música no canal Music, com opcional crossfade entre músicas.
+    /// crossfadeDuration = 0 significa que não haverá crossfade.
+    /// </summary>
+    public static void PlayMusic(AudioClip clip, float volume = 1f, float pitch = 1f, bool loop = true, float crossfadeDuration = 0f)
+    {
+        if (clip == null) return;
+
+        if (crossfadeDuration <= 0f)
+        {
+            // Sem crossfade, toca direto
+            AudioSource current = _usingMusicSourceA ? _instance.musicSourceA : _instance.musicSourceB;
+            AudioSource other = _usingMusicSourceA ? _instance.musicSourceB : _instance.musicSourceA;
+
+            other.Stop();
+            current.clip = clip;
+            current.volume = volume;
+            current.pitch = pitch;
+            current.loop = loop;
+            current.Play();
+        }
+        else
+        {
+            // Com crossfade entre os dois AudioSources
+            AudioSource from = _usingMusicSourceA ? _instance.musicSourceA : _instance.musicSourceB;
+            AudioSource to = _usingMusicSourceA ? _instance.musicSourceB : _instance.musicSourceA;
+
+            to.clip = clip;
+            to.volume = 0f;
+            to.pitch = pitch;
+            to.loop = loop;
+            to.Play();
+
+            _instance.StartCoroutine(_instance.CrossfadeMusic(from, to, volume, crossfadeDuration));
+
+            _usingMusicSourceA = !_usingMusicSourceA;
+        }
+    }
+
+    private IEnumerator CrossfadeMusic(AudioSource from, AudioSource to, float targetVolume, float duration)
+    {
+        float time = 0f;
+        float fromStartVolume = from.volume;
+        float toStartVolume = to.volume;
+
+        while (time < duration)
+        {
+            float t = time / duration;
+            from.volume = Mathf.Lerp(fromStartVolume, 0f, t);
+            to.volume = Mathf.Lerp(toStartVolume, targetVolume, t);
+            time += Time.deltaTime;
+            yield return null;
         }
 
-        // Converte as listas em dicionários para busca otimizada O(1)
-        InitializeDictionaries();
-
-        // Carrega as configurações de volume salvas (implementação omitida para brevidade)
-        // LoadVolumeValues(); 
+        from.volume = 0f;
+        from.Stop();
+        to.volume = targetVolume;
     }
 
-    private void InitializeDictionaries()
+    // =========================== PLAY SFX ===========================
+
+    /// <summary>
+    /// Toca efeito sonoro em SFX usando PlayOneShot.
+    /// volume e pitch opcionais.
+    /// loop não se aplica aqui.
+    /// </summary>
+    public static void PlaySFX(AudioClip clip, float volume = 1f, float pitch = 1f, bool loop = false)
     {
-        musicDict = new Dictionary<string, AudioClip>();
-        foreach (var track in musicTracks) musicDict[track.name] = track.clip;
+        if (_instance.sfxSource == null || clip == null) return;
 
-        sfxDict = new Dictionary<string, AudioClip>();
-        foreach (var sfx in sfxClips) sfxDict[sfx.name] = sfx.clip;
-
-        uiDict = new Dictionary<string, AudioClip>();
-        foreach (var uiSound in uiClips) uiDict[uiSound.name] = uiSound.clip;
+        _instance.sfxSource.pitch = pitch;
+        _instance.sfxSource.PlayOneShot(clip, volume);
     }
 
-    // --- MÉTODOS ESTÁTICOS PÚBLICOS (WRAPPERS) ---
-    // A partir de agora, você chamará estes métodos de outros scripts.
+    // =========================== PLAY UI ===========================
 
-    public static void PlayMusic(string clipName)
+    /// <summary>
+    /// Toca áudio de UI usando PlayOneShot.
+    /// volume e pitch opcionais.
+    /// loop não se aplica aqui.
+    /// </summary>
+    public static void PlayUI(AudioClip clip, float volume = 1f, float pitch = 1f)
     {
-        if (_instance == null) return;
-        _instance.PlayMusic_Internal(clipName);
+        if (_instance.uiSource == null || clip == null) return;
+
+        _instance.uiSource.pitch = pitch;
+        _instance.uiSource.PlayOneShot(clip, volume);
     }
 
-    public static void PlaySfx(string clipName)
-    {
-        if (_instance == null) return;
-        _instance.PlaySfx_Internal(clipName);
-    }
-
-    public static void PlayUI(string clipName)
-    {
-        if (_instance == null) return;
-        _instance.PlayUI_Internal(clipName);
-    }
+    // =========================== STOP FUNCTIONS ===========================
 
     public static void StopMusic()
     {
-        if (_instance == null) return;
-        _instance.StopMusic_Internal();
-    }
-    
-    // --- MÉTODOS PÚBLICOS ESTÁTICOS PARA CONTROLE DE VOLUME ---
-
-    public static void SetMasterVolume(float level)
-    {
-        if (_instance == null) return;
-        _instance.SetMasterVolume_Internal(level);
+        if (_instance.musicSourceA != null) _instance.musicSourceA.Stop();
+        if (_instance.musicSourceB != null) _instance.musicSourceB.Stop();
     }
 
-    public static void SetMusicVolume(float level)
+    public static void StopSFX()
     {
-        if (_instance == null) return;
-        _instance.SetMusicVolume_Internal(level);
+        if (_instance.sfxSource != null) _instance.sfxSource.Stop();
     }
 
-    public static void SetSfxVolume(float level)
+    public static void StopUI()
     {
-        if (_instance == null) return;
-        _instance.SetSfxVolume_Internal(level);
+        if (_instance.uiSource != null) _instance.uiSource.Stop();
     }
 
-    public static void SetUIVolume(float level)
+    public static void StopAll()
     {
-        if (_instance == null) return;
-        _instance.SetUIVolume_Internal(level);
+        StopMusic();
+        StopSFX();
+        StopUI();
     }
 
+    // =========================== PAUSE FUNCTIONS ===========================
 
-    // --- IMPLEMENTAÇÃO INTERNA (MÉTODOS DE INSTÂNCIA) ---
-    // Estes métodos contêm a lógica real e são chamados pelos wrappers estáticos.
-
-    private void PlayMusic_Internal(string clipName)
+    public static void PauseMusic()
     {
-        if (musicDict.TryGetValue(clipName, out var clip))
-        {
-            if (musicSource.clip == clip && musicSource.isPlaying)
-                return; // Não reinicia a música se já estiver tocando
-
-            musicSource.clip = clip;
-            musicSource.Play();
-        }
-        else
-        {
-            Debug.LogWarning($"Música '{clipName}' não encontrada!");
-        }
+        if (_instance.musicSourceA != null && _instance.musicSourceA.isPlaying) _instance.musicSourceA.Pause();
+        if (_instance.musicSourceB != null && _instance.musicSourceB.isPlaying) _instance.musicSourceB.Pause();
     }
 
-    private void PlaySfx_Internal(string clipName)
+    public static void PauseSFX()
     {
-        if (sfxDict.TryGetValue(clipName, out var clip))
-            // PlayOneShot permite tocar múltiplos sons sobrepostos, ideal para SFX
-            sfxSource.PlayOneShot(clip);
-        else
-            Debug.LogWarning($"SFX '{clipName}' não encontrado!");
+        if (_instance.sfxSource != null && _instance.sfxSource.isPlaying) _instance.sfxSource.Pause();
     }
 
-    private void PlayUI_Internal(string clipName)
+    public static void PauseUI()
     {
-        if (uiDict.TryGetValue(clipName, out var clip))
-            uiSource.PlayOneShot(clip);
-        else
-            Debug.LogWarning($"Som de UI '{clipName}' não encontrado!");
+        if (_instance.uiSource != null && _instance.uiSource.isPlaying) _instance.uiSource.Pause();
     }
 
-    private void StopMusic_Internal()
+    public static void PauseAll()
     {
-        musicSource.Stop();
-    }
-    
-    private void SetMasterVolume_Internal(float level)
-    {
-        // O volume do Mixer é em decibéis (logarítmico), então convertemos
-        // Garante que o level não seja zero para evitar -Infinity no Log10
-        float dbVolume = level > 0.001f ? Mathf.Log10(level) * 20 : -80f;
-        mainMixer.SetFloat("MasterVolume", dbVolume);
-        PlayerPrefs.SetFloat("MasterVolume", level);
+        PauseMusic();
+        PauseSFX();
+        PauseUI();
     }
 
-    private void SetMusicVolume_Internal(float level)
+    // =========================== VOLUME SETTERS ===========================
+
+    /// <summary>
+    /// Define o volume do grupo Music no AudioMixer (valores de 0 a 1).
+    /// </summary>
+    public static void SetMusicVolume(float volume)
     {
-        float dbVolume = level > 0.001f ? Mathf.Log10(level) * 20 : -80f;
-        mainMixer.SetFloat("MusicVolume", dbVolume);
-        PlayerPrefs.SetFloat("MusicVolume", level);
+        if (_instance.audioMixer != null)
+            _instance.audioMixer.SetFloat("MusicVolume", Mathf.Log10(Mathf.Clamp(volume, 0.0001f, 1f)) * 20f);
     }
 
-    private void SetSfxVolume_Internal(float level)
+    /// <summary>
+    /// Define o volume do grupo SFX no AudioMixer (valores de 0 a 1).
+    /// </summary>
+    public static void SetSFXVolume(float volume)
     {
-        float dbVolume = level > 0.001f ? Mathf.Log10(level) * 20 : -80f;
-        mainMixer.SetFloat("SFXVolume", dbVolume);
-        PlayerPrefs.SetFloat("SFXVolume", level);
+        if (_instance.audioMixer != null)
+            _instance.audioMixer.SetFloat("SFXVolume", Mathf.Log10(Mathf.Clamp(volume, 0.0001f, 1f)) * 20f);
     }
 
-    private void SetUIVolume_Internal(float level)
+    /// <summary>
+    /// Define o volume do grupo UI no AudioMixer (valores de 0 a 1).
+    /// </summary>
+    public static void SetUIVolume(float volume)
     {
-        float dbVolume = level > 0.001f ? Mathf.Log10(level) * 20 : -80f;
-        mainMixer.SetFloat("UIVolume", dbVolume);
-        PlayerPrefs.SetFloat("UIVolume", level);
+        if (_instance.audioMixer != null)
+            _instance.audioMixer.SetFloat("UIVolume", Mathf.Log10(Mathf.Clamp(volume, 0.0001f, 1f)) * 20f);
+    }
+
+    /// <summary>
+    /// Define o volume master no AudioMixer (valores de 0 a 1).
+    /// </summary>
+    public static void SetMasterVolume(float volume)
+    {
+        if (_instance.audioMixer != null)
+            _instance.audioMixer.SetFloat("MasterVolume", Mathf.Log10(Mathf.Clamp(volume, 0.0001f, 1f)) * 20f);
     }
 }
